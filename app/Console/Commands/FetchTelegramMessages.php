@@ -28,60 +28,56 @@ class FetchTelegramMessages extends Command
 
         $lastUpdateId = 0;
 
-        while (true) {
-            $isCallBack = false;
-            $response = file_get_contents("{$url}?offset=" . ($lastUpdateId + 1));
-            $data = json_decode($response, true);
-            Log::info('===' . json_encode($data));
-            if (!empty($data['result'])) {
-                foreach ($data['result'] as $message) {
-                    Log::info('message=' . json_encode($message, JSON_PRETTY_PRINT));
-                    $lastUpdateId = $message['update_id'];
+        $isCallBack = false;
+        $response = file_get_contents("{$url}?offset=" . ($lastUpdateId + 1));
+        $data = json_decode($response, true);
+        Log::info('===' . json_encode($data));
+        if (!empty($data['result'])) {
+            foreach ($data['result'] as $message) {
+                Log::info('message=' . json_encode($message, JSON_PRETTY_PRINT));
+                $lastUpdateId = $message['update_id'];
 
-                    if (isset($message['callback_query'])) {
-                        Log::info('is_call_back');
-                        $isCallBack = true;
-                    } else {
-                        Log::info('not_call_back');
+                if (isset($message['callback_query'])) {
+                    Log::info('is_call_back');
+                    $isCallBack = true;
+                } else {
+                    Log::info('not_call_back');
+                }
+
+                if ($isCallBack) {
+                    Log::info('is_call_back_query');
+                    $chatId = $message['callback_query']['message']['chat']['id'] ?? null;
+                    $callbackData = $message['callback_query']['data'] ?? null;
+                    $text = $message['callback_query']['message']['text'] ?? '';
+                } else {
+                    Log::info('not call_back_query data fetching ');
+                    Log::info('===' . json_encode($message, JSON_PRETTY_PRINT));
+                    $chatId = $message['message']['chat']['id'] ?? null;
+                    $text = $message['message']['text'] ?? '';
+                    $messageId = $message['message']['message_id'] ?? null;
+                }
+
+                Log::info('chatId=' . $chatId);
+                // 確認 chatId 是否為空
+                if (!$chatId) {
+                    Log::warning("收到的消息中沒有 chatId");
+                    continue;
+                }
+
+                if ($isCallBack) {
+                    if ($callbackData && strpos($callbackData, 'lang_') === 0) {
+                        $this->setLanguagePreference($chatId, substr($callbackData, 5)); // 提取语言代码
                     }
-
-                    if ($isCallBack) {
-                        Log::info('is_call_back_query');
-                        $chatId = $message['callback_query']['message']['chat']['id'] ?? null;
-                        $callbackData = $message['callback_query']['data'] ?? null;
-                        $text = $message['callback_query']['message']['text'] ?? '';
+                } else {
+                    if ($text === '/lang') {
+                        $this->sendLanguageOptions($chatId);
+                    } else if (str_starts_with($text, '/lang')) {
+                        $this->setSpecificLanguage($chatId, substr($text, 6));
                     } else {
-                        Log::info('not call_back_query data fetching ');
-                        Log::info('===' . json_encode($message, JSON_PRETTY_PRINT));
-                        $chatId = $message['message']['chat']['id'] ?? null;
-                        $text = $message['message']['text'] ?? '';
-                        $messageId = $message['message']['message_id'] ?? null;
-                    }
-
-                    Log::info('chatId=' . $chatId);
-                    // 確認 chatId 是否為空
-                    if (!$chatId) {
-                        Log::warning("收到的消息中沒有 chatId");
-                        continue;
-                    }
-
-                    if ($isCallBack) {
-                        if ($callbackData && strpos($callbackData, 'lang_') === 0) {
-                            $this->setLanguagePreference($chatId, substr($callbackData, 5)); // 提取语言代码
-                        }
-                    } else {
-                        if ($text === '/lang') {
-                            $this->sendLanguageOptions($chatId);
-                        } else if (str_starts_with($text, '/lang')) {
-                            $this->setSpecificLanguage($chatId, substr($text, 6));
-                        } else {
-                            $this->processMessage($chatId, $text, $messageId);
-                        }
+                        $this->processMessage($chatId, $text, $messageId);
                     }
                 }
             }
-
-            sleep(1);
         }
     }
 
