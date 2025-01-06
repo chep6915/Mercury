@@ -29,6 +29,9 @@ class FetchTelegramMessages extends Command
         $lastUpdateId = 0;
 
         while (true) {
+            if(env('TG_START')!=='TRUE'){
+                break;
+            }
             $isCallBack = false;
             $response = file_get_contents("{$url}?offset=" . ($lastUpdateId + 1));
             $data = json_decode($response, true);
