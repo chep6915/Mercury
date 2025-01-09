@@ -29,39 +29,30 @@ class FetchTelegramMessages extends Command
         $lastUpdateId = 0;
 
         while (true) {
-            if (!env('TG_START')) {
-                break;
-            }
             $isCallBack = false;
             $response = file_get_contents("{$url}?offset=" . ($lastUpdateId + 1));
             $data = json_decode($response, true);
-            Log::info('===' . json_encode($data));
+//            Log::info('data=' . json_encode($data,JSON_PRETTY_PRINT));
             if (!empty($data['result'])) {
                 foreach ($data['result'] as $message) {
-                    Log::info('message=' . json_encode($message, JSON_PRETTY_PRINT));
+//                    Log::info('message=' . json_encode($message, JSON_PRETTY_PRINT));
                     $lastUpdateId = $message['update_id'];
 
                     if (isset($message['callback_query'])) {
-                        Log::info('is_call_back');
                         $isCallBack = true;
                     } else {
-                        Log::info('not_call_back');
                     }
 
                     if ($isCallBack) {
-                        Log::info('is_call_back_query');
                         $chatId = $message['callback_query']['message']['chat']['id'] ?? null;
                         $callbackData = $message['callback_query']['data'] ?? null;
                         $text = $message['callback_query']['message']['text'] ?? '';
                     } else {
-                        Log::info('not call_back_query data fetching ');
-                        Log::info('===' . json_encode($message, JSON_PRETTY_PRINT));
                         $chatId = $message['message']['chat']['id'] ?? null;
                         $text = $message['message']['text'] ?? '';
                         $messageId = $message['message']['message_id'] ?? null;
                     }
 
-                    Log::info('chatId=' . $chatId);
                     // 確認 chatId 是否為空
                     if (!$chatId) {
                         Log::warning("收到的消息中沒有 chatId");
@@ -117,14 +108,14 @@ class FetchTelegramMessages extends Command
 
     private function setLanguagePreference($chatId, $langCode)
     {
-        Log::info('choosing langCode:' . $langCode);
+//        Log::info('choosing langCode:' . $langCode);
         // 设置用户语言偏好
         $this->userPreferences[$chatId] = $langCode;
 
         $token = env('TG_TOKEN');
         $url = "https://api.telegram.org/bot{$token}/sendMessage";
-        Log::info('chatId=' . $chatId);
-        Log::info('语言已更新为：' . $this->getLanguageName($langCode));
+//        Log::info('chatId=' . $chatId);
+//        Log::info('语言已更新为：' . $this->getLanguageName($langCode));
         $response = [
             'chat_id' => $chatId,
             'text' => '语言已更新为：' . $this->getLanguageName($langCode),
@@ -150,7 +141,7 @@ class FetchTelegramMessages extends Command
             $userTargetLang = $this->userPreferences[$chatId] ?? 'zh-CN'; // 默认中文
 
             $originalLanguage = $this->detectLanguage($text);
-            Log::info('detected language=' . $originalLanguage);
+//            Log::info('detected language=' . $originalLanguage);
 
             if ($originalLanguage == $userTargetLang) {
                 // 翻译目标成简体中文
@@ -158,7 +149,7 @@ class FetchTelegramMessages extends Command
             }
 
             $translatedText = $this->translateFromGoogle($text, $userTargetLang);
-            Log::info($translatedText);
+//            Log::info($translatedText);
 
             $response = [
                 'chat_id' => $chatId,
@@ -198,7 +189,7 @@ class FetchTelegramMessages extends Command
         ];
 
         if (!empty($originalLang)) {
-            Log::info('originalLang=' . $originalLang);
+//            Log::info('originalLang=' . $originalLang);
             $params['sl'] = $originalLang; // 翻译前的语言
         }
 
@@ -210,7 +201,6 @@ class FetchTelegramMessages extends Command
 
     private function translateFromGoogle($text, $targetLanguage)
     {
-        Log::info('translateFromGoogle');
         $apiKey = env('GOOGLE_API_KEY');
         $client = new Client();
         $url = 'https://translation.googleapis.com/language/translate/v2';
@@ -233,11 +223,10 @@ class FetchTelegramMessages extends Command
     private function setSpecificLanguage($chatId, $langCode)
     {
         // 设置用户语言偏好
-        Log::info('choosing langCode:' . $langCode);
+//        Log::info('choosing langCode:' . $langCode);
         $token = env('TG_TOKEN');
         $url = "https://api.telegram.org/bot{$token}/sendMessage";
-        Log::info('chatId=' . $chatId);
-        Log::info('语言已更新为：' . $this->getLanguageName($langCode));
+//        Log::info('语言已更新为：' . $this->getLanguageName($langCode));
 
         if (!isset($this->languageNames[$langCode])) {
             $message = '不支援该语言代码:' . $langCode;
