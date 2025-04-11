@@ -31,62 +31,64 @@ class FetchTelegramMessages extends Command
         $lastUpdateId = $this->getLastUpdateId($token) ?? 0;
 
 //        while (true) {
-        $response = file_get_contents("{$url}?offset=" . ($lastUpdateId + 1));
-        $data = json_decode($response, true);
-        foreach (($data['result'] ?? []) as $message) {
-            $lastUpdateId = $this->setLastUpdateId($token, $message['update_id']);
+        // 執行 60 次（每秒一次，持續 1 分鐘）
+        for ($i = 0; $i < 59; $i++) {
+            $response = $this->getContentTelegram($url, $lastUpdateId);
+            $data = json_decode($response, true);
+            foreach (($data['result'] ?? []) as $message) {
+                $lastUpdateId = $this->setLastUpdateId($token, $message['update_id']);
 
-            // 处理回调
-            if (isset($message['callback_query'])) {
-                $this->processCallBack($message);
-                continue;
-            }
-
-            $chatId = $message['message']['chat']['id'] ?? null;
-            $text = $message['message']['text'] ?? '';
-            $messageId = $message['message']['message_id'] ?? null;
-
-            // 確認 chatId 是否為空
-            if (!$chatId) {
-                Log::warning("收到的消息中沒有 chatId");
-                continue;
-            }
-
-            if (!$this->checkWhiteChatId($chatId)) {
-                Log::warning("chatId: {$chatId} 并非在白名单内");
-                continue;
-            }
-
-            if ($text === '/model') {
-                $this->sendModelOptions($chatId);
-            } else if ($text === '/lang') {
-                $this->sendLanguageOptions($chatId);
-            } else {
-                $telegramGroupConfig = $this->getTelegramGroupConfig($chatId);
-
-                if (empty($telegramGroupConfig)) {
-                    $this->sendLanguageOptions($chatId);
+                // 处理回调
+                if (isset($message['callback_query'])) {
+                    $this->processCallBack($message);
                     continue;
                 }
 
-                $channelTargetLang = $telegramGroupConfig['translate_target_language'];
-                $channelTranslateModel = $telegramGroupConfig['translate_model_id'];
+                $chatId = $message['message']['chat']['id'] ?? null;
+                $text = $message['message']['text'] ?? '';
+                $messageId = $message['message']['message_id'] ?? null;
 
-                if ($channelTranslateModel == TelegramGroupConfigEnum::TRANSLATE_MODEL_GOOGLE_TRANSLATE) {
-                    $transText = $this->googleTrans($channelTargetLang, $text);
-                } else if ($channelTranslateModel == TelegramGroupConfigEnum::TRANSLATE_MODEL_CHATGPT) {
-                    $transText = $this->chatGPTTrans($channelTargetLang, $text);
-                } else {
-                    $transText = '';
+                // 確認 chatId 是否為空
+                if (!$chatId) {
+                    Log::warning("收到的消息中沒有 chatId");
+                    continue;
                 }
 
-                $this->sendTelegram([
-                    'chat_id' => $chatId,
-                    'text' => $transText,
-                    'reply_to_message_id' => $messageId,
-                ]);
-            }
+                if (!$this->checkWhiteChatId($chatId)) {
+                    Log::warning("chatId: {$chatId} 并非在白名单内");
+                    continue;
+                }
 
+                if ($text === '/model') {
+                    $this->sendModelOptions($chatId);
+                } else if ($text === '/lang') {
+                    $this->sendLanguageOptions($chatId);
+                } else {
+                    $telegramGroupConfig = $this->getTelegramGroupConfig($chatId);
+
+                    if (empty($telegramGroupConfig)) {
+                        $this->sendLanguageOptions($chatId);
+                        continue;
+                    }
+
+                    $channelTargetLang = $telegramGroupConfig['translate_target_language'];
+                    $channelTranslateModel = $telegramGroupConfig['translate_model_id'];
+
+                    if ($channelTranslateModel == TelegramGroupConfigEnum::TRANSLATE_MODEL_GOOGLE_TRANSLATE) {
+                        $transText = $this->googleTrans($channelTargetLang, $text);
+                    } else if ($channelTranslateModel == TelegramGroupConfigEnum::TRANSLATE_MODEL_CHATGPT) {
+                        $transText = $this->chatGPTTrans($channelTargetLang, $text);
+                    } else {
+                        $transText = '';
+                    }
+
+                    $this->sendTelegram([
+                        'chat_id' => $chatId,
+                        'text' => $transText,
+                        'reply_to_message_id' => $messageId,
+                    ]);
+                }
+            }
 //            }
 //
 //            sleep(1);
@@ -437,6 +439,27 @@ class FetchTelegramMessages extends Command
                 'Line' => $e->getLine(),
                 'trace' => $e->getTraceAsString(),
             ]));
+        }
+    }
+
+    /**
+     * @param string $url
+     * @param int $lastUpdateId
+     * @return false|string
+     */
+    public function getContentTelegram(string $url, int $lastUpdateId): string|false
+    {
+        try {
+            return file_get_contents("{$url}?offset=" . ($lastUpdateId + 1));
+        } catch (\Exception $e) {
+            Log::info(json_encode([
+                'message' => $e->getMessage(),
+                'code' => $e->getCode(),
+                'file' => $e->getFile(),
+                'Line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]));
+            return '';
         }
     }
 
