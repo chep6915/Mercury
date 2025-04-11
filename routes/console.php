@@ -8,4 +8,4 @@ use Illuminate\Support\Facades\Artisan;
 //    $this->comment(Inspiring::quote());
 //})->purpose('Display an inspiring quote')->hourly();
 
-app(Schedule::class)->command('telegram:fetch')->everyMinute();
+//app(Schedule::class)->command('telegram:fetch')->everyMinute()->withoutOverlapping();

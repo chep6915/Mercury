@@ -30,9 +30,7 @@ class FetchTelegramMessages extends Command
 
         $lastUpdateId = $this->getLastUpdateId($token) ?? 0;
 
-//        while (true) {
-        // 執行 60 次（每秒一次，持續 1 分鐘）
-        for ($i = 0; $i < 59; $i++) {
+        while (true) {
             $response = $this->getContentTelegram($url, $lastUpdateId);
             $data = json_decode($response, true);
             foreach (($data['result'] ?? []) as $message) {
@@ -89,9 +87,7 @@ class FetchTelegramMessages extends Command
                     ]);
                 }
             }
-//            }
-//
-//            sleep(1);
+            sleep(1);
         }
     }
 
