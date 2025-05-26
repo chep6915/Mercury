@@ -61,6 +61,8 @@ class FetchTelegramMessages extends Command
                     $this->sendModelOptions($chatId);
                 } else if ($text === '/lang') {
                     $this->sendLanguageOptions($chatId);
+                } else if ($text === '/chatId') {
+                    $this->sendChatId($chatId);
                 } else {
                     $telegramGroupConfig = $this->getTelegramGroupConfig($chatId);
 
@@ -141,6 +143,14 @@ class FetchTelegramMessages extends Command
             'chat_id' => $chatId,
             'text' => '请选择翻译目标语言：',
             'reply_markup' => json_encode(['inline_keyboard' => $keyboard]),
+        ]);
+    }
+
+    private function sendChatId(int $chatId): void
+    {
+        $this->sendTelegram([
+            'chat_id' => $chatId,
+            'text' => 'ChatId：' . $chatId,
         ]);
     }
 
